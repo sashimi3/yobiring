@@ -60,3 +60,15 @@ button:disabled {
 .message.error {
   color: #b33;
 }
+
+.message p {
+  margin: 0;
+}
+
+button.cancel {
+  font-size: 1.4rem;
+  padding: 1.2rem 2.5rem;
+  background: transparent;
+  color: #555;
+  border: 2px solid #aaa;
+}

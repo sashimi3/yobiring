@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true, // 同一LANの iPad から確認する用
+    // host: true, // 同一LANの iPad から確認する用
     proxy: { '/api': 'http://localhost:8000' },
   },
 });
