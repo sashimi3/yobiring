@@ -1,0 +1,62 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #222;
+  background: #f7f5f0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+}
+
+h1 {
+  font-size: 2.2rem;
+  font-weight: 600;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+  width: min(90vw, 900px);
+}
+
+button {
+  font-size: 2rem;
+  padding: 3rem 1rem;
+  border: none;
+  border-radius: 1.5rem;
+  background: #2f6f4f;
+  color: #fff;
+  touch-action: manipulation;
+  /* ダブルタップズーム抑止 */
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+.message {
+  font-size: 2.6rem;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.message.error {
+  color: #b33;
+}
