@@ -1,13 +1,53 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-type Status = 'idle' | 'sending' | 'sent' | 'cancelling' | 'cancelled' | 'error'
+type Status =
+  | 'idle'  // 初期状態
+  | 'sending' // 呼び出し中
+  | 'sent' // 呼び出し済み
+  | 'cancelling' // キャンセル中
+  | 'cancelled' // キャンセル済み
+  | 'accepted' // 対応済み
+  | 'error' // エラー
 
 // 各画面から初期画面へ戻るまでの時間
 const RESET_MS: Partial<Record<Status, number>> = {
-  sent: 10000, // この間だけキャンセル可能
+  sent: 60000, // 応答待ち。この間はキャンセル可能
+  accepted: 10000,
   cancelled: 3000,
   error: 5000,
+}
+
+// 残り時間の数字と、減っていく円形プログレス
+function Countdown({ ms }: { ms: number }) {
+  const [left, setLeft] = useState(ms)
+
+  useEffect(() => {
+    const end = Date.now() + ms
+    const id = setInterval(() => setLeft(Math.max(0, end - Date.now())), 100)
+    return () => clearInterval(id)
+  }, [ms])
+
+  const r = 36
+  const c = 2 * Math.PI * r
+
+  return (
+    <div className='countdown'>
+      <svg viewBox='0 0 80 80'>
+        <circle className='track' cx='40' cy='40' r={r} />
+        <circle
+          className='bar'
+          cx='40'
+          cy='40'
+          r={r}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - left / ms)}
+          transform='rotate(-90 40 40)'
+        />
+      </svg>
+      {/* <span>{Math.ceil(left / 1000)}</span> */}
+    </div>
+  )
 }
 
 export default function App() {
@@ -35,6 +75,24 @@ export default function App() {
     return () => clearTimeout(id)
   }, [status])
 
+  // 応答待ちの間、対応状況をポーリング
+  useEffect(() => {
+    if (status !== 'sent' || !callId) return
+    const id = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/calls/${callId}`)
+        if (!r.ok) return
+        const data = await r.json()
+        if (data.state === 'accepted') {
+          setStatus('accepted')
+        }
+      } catch {
+        // 一時的な失敗は次回のポーリングに任せる
+      }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [status, callId])
+
   const call = async (to: string) => {
     setStatus('sending')
     try {
@@ -45,7 +103,7 @@ export default function App() {
       })
       if (!r.ok) throw new Error()
       const data = await r.json()
-      setCallId(data.id ?? null) // cooldown 時は id なし => キャンセル不可
+      setCallId(data.id ?? null) // cooldown 時は id なし → キャンセル不可
       setStatus('sent')
     } catch {
       setStatus('error')
@@ -61,25 +119,42 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: callId }),
       })
-      setStatus(r.ok ? 'cancelled' : 'error')
+      // 409 = キャンセル直前に対応済みになった
+      setStatus(r.ok ? 'cancelled' : r.status === 409 ? 'sent' : 'error')
     } catch {
       setStatus('error')
     }
+  }
+
+  if (status === 'accepted') {
+    return (
+      <main className='message'>
+        <p>
+          スタッフが向かっています。
+          <br />
+          少々お待ちください。
+        </p>
+        <Countdown key="accepted" ms={RESET_MS.accepted!} />
+        <p className="note">画面が元に戻っても、スタッフはそのまま向かいます。</p>
+      </main>
+    )
   }
 
   if (status === 'sent' || status === 'cancelling') {
     return (
       <main className='message'>
         <p>
-          お呼びしました。
+          呼び出しを行いました。
           <br />
           少々お待ちください。
         </p>
+        {status === 'sent' && <Countdown ms={RESET_MS.sent!} />}
         {callId && (
           <button className='cancel' disabled={status === 'cancelling'} onClick={cancel}>
             呼び出しを取り消す
           </button>
         )}
+        <p className="note">画面が元に戻っても、呼び出しは取り消されません。</p>
       </main>
     )
   }
