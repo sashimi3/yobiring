@@ -1,0 +1,34 @@
+services:
+  web:
+    build:
+      context: ./reception/web
+      platforms:
+        - linux/amd64
+    ports:
+      - "8080:80"
+    # Basic 認証を使う場合は有効化(ファイルが無いままマウントするとディレクトリが作られて nginx が起動しない)
+    # 作成方法: printf 'reception:%s\n' "$(openssl passwd -apr1)" | tee ./reception/web/nginx/.htpasswd
+    # volumes:
+    #   - ./reception/web/nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./reception/api
+      platforms:
+        - linux/amd64
+    env_file: ./reception/api/.env
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./worker
+      platforms:
+        - linux/amd64
+    env_file: ./worker/.env
+    environment:
+      # 同居時は nginx を通さず API に直接つなぐ
+      RECEPTION_API_URL: http://api:8000
+    restart: unless-stopped

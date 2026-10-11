@@ -23,7 +23,7 @@ RATE_LIMIT_BACKOFF_SEC = 5  # 429 時の待ち
 ERROR_BACKOFF_SEC = 5  # 予期しない例外時の待ち
 MQ_TIMEOUT_SEC = 10  # MQ への HTTP タイムアウト
 NOTIFY_TIMEOUT_SEC = 5  # API への accepted 通知のタイムアウト
-
+INTERNAL_TOKEN = os.getenv("RECEPTION_INTERNAL_TOKEN", "").strip()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("worker")
@@ -71,6 +71,9 @@ def notify_accepted(call_id: str) -> None:
     try:
         requests.post(
             f"{API_URL}/internal/accepted",
+            headers={"Authorization": f"Bearer {INTERNAL_TOKEN}"}
+            if INTERNAL_TOKEN
+            else {},
             json={"id": call_id},
             timeout=NOTIFY_TIMEOUT_SEC,
         ).raise_for_status()

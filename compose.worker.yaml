@@ -1,0 +1,6 @@
+# Worker を別ネットワークに分離して起動する場合の設定
+services:
+  worker:
+    build: ./worker
+    env_file: ./worker/.env # RECEPTION_API_URL=https://reception.example.com を入れる
+    restart: unless-stopped

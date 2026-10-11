@@ -2,11 +2,12 @@ import base64
 import json
 import logging
 import os
+import secrets
 import time
 import uuid
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger("uvicorn.error")
@@ -16,6 +17,15 @@ QUEUE = os.environ["SIMPLE_MQ_QUEUE"].strip()
 API_KEY = os.environ["SIMPLE_MQ_API_KEY"].strip()
 if not QUEUE or not API_KEY:
     raise RuntimeError("SIMPLE_MQ_QUEUE / SIMPLE_MQ_API_KEY が空です")
+
+# 未設定なら /internal/ は認証なし(ローカル開発向け)
+INTERNAL_TOKEN = os.getenv("RECEPTION_INTERNAL_TOKEN", "").strip()
+if not QUEUE or not API_KEY:
+    raise RuntimeError("SIMPLEMQ_QUEUE / SIMPLEMQ_API_KEY が空です")
+if not INTERNAL_TOKEN:
+    logger.warning(
+        "RECEPTION_INTERNAL_TOKEN is not set. /internal/ is unauthenticated."
+    )
 
 TARGETS = ["外出したい", "話がある", "その他"]
 COOLDOWN_SEC = 10  # 連打・二度押し対策
@@ -103,7 +113,17 @@ async def cancel(req: CancelRequest):
     return {"status": "cancel_queued"}
 
 
-@app.post("/internal/accepted", status_code=204)
+def verify_internal_token(authorization: str = Header("")) -> None:
+    if not INTERNAL_TOKEN:
+        return
+    if not secrets.compare_digest(authorization, f"Bearer {INTERNAL_TOKEN}"):
+        raise HTTPException(401, "unauthorized")
+
+
+@app.post(
+    "/internal/accepted",
+    status_code=204,
+    dependencies=[Depends(verify_internal_token)],
+)
 def internal_accepted(req: AcceptedRequest):
-    # 認証は次のステップで追加
     accepted[req.id] = time.time()
