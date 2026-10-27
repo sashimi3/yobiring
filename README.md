@@ -8,7 +8,33 @@ iPad のアクセスガイド等でキオスク表示して使う想定。
 
 フロントエンドと API のネットワークを分離できるように MQ を介して通信する。
 
-諸々が ephemeral なので、大きくするなら Django 等で DB に永続化したり、来訪コードで直接担当者呼び出しする機能を実現したりしたい。
+## 構成概要
+
+```mermaid
+flowchart LR
+  subgraph lan[受付LAN]
+    ipad[受付端末 iPad / ブラウザー]
+  end
+
+  subgraph server[コンテナネットワーク]
+    web[nginx :80 / Frontend配信]
+    api[API :8000]
+    web -->|/api/* と /internal/* を転送| api
+    worker["worker\n(別ホスト/NWにも配置可)"]
+  end
+
+  mq[(さくらのクラウド SimpleMQ)]
+  slack[Slack]
+
+  ipad -->|HTTP :80| web
+
+  api -->|呼び出し登録 / 取消登録| mq
+  worker -->|ポーリング / メッセージ削除| mq
+  worker <-->|Socket Mode| slack
+
+  worker -.->|同居時: http://api:8000/internal/accepted| api
+  worker -.->|別ネットワーク時: HTTPS公開URL経由で /internal/accepted| web
+```
 
 ## Usage
 
